@@ -96,7 +96,7 @@ router
 router
     .route('/:videoId/comments')
     .post(findVideoById,(req, res)=>{
-        const {name, comment, timestamp} = req.body;
+        const {name, comment} = req.body;
         const videos = getVideos();
         const {foundVideo} = req;
         const comments = foundVideo.comments;
@@ -104,7 +104,7 @@ router
             id: uuidv4(),
             name,
             comment,
-            timestamp
+            timestamp: new Date().getTime()
         }
         comments.push(newComment);
         const updatedVideos = videos.map((video) => {

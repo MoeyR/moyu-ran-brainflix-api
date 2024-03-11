@@ -1,9 +1,11 @@
 const express = require('express');
 const fs = require('fs');
-const router = express.Router();
 const {v4:uuidv4} = require('uuid');
+const multer = require('multer');
+const router = express.Router();
 
-const VIDEOS_FILE_PATH = "./data/video-details.json";
+
+const VIDEOS_FILE_PATH = "./data/videos.json";
 
 function getVideos(){
     const videosJson = fs.readFileSync(VIDEOS_FILE_PATH);
@@ -15,13 +17,24 @@ function setVideos(videos){
     fs.writeFileSync(VIDEOS_FILE_PATH, videoJson);
 }
 
+
+//Store post video thumbnail
+const storage = multer.diskStorage({
+    destination: function(req, file, callBackFun){
+        return callBackFun(null, "public/images");
+    },
+    filename: function (req, image, callBackFun){
+        return callBackFun(null, `${uuidv4()}_${image.originalname}`)
+    }
+})
+
+const upload = multer({storage});
+
+
 //Middleware to validate POST /videos request
 const postVideoValidator = (req, res, next)=>{
-    const {
-        title,
-        description,
-        image
-    } = req.body;
+    const {title, description, channel, timestamp, views, likes, comments} = req.body;
+    let imageName;
 
     if(!title){
         return res.status(400).json({error: "Video title is missing!"});
@@ -31,8 +44,28 @@ const postVideoValidator = (req, res, next)=>{
         return res.status(400).json({error: "Video description is missing!"})
     }
 
+    // Check if a file is attached 
+    if(!req.file){
+        imageName = "image9"
+    }else{
+        imageName = req.file.filename;
+    }
+    
+    // Set all values on the req object
+    req.videoData = {
+        title,
+        description,
+        channel,
+        timestamp,
+        views,
+        likes,
+        comments,
+        imageName
+    };
+    
     next();
 }
+
 
 //Middleware to find video by videoId
 const findVideoById =(req, res, next)=>{
@@ -69,14 +102,21 @@ router
         
         res.status(200).json(videosArr);
     })
-    .post(postVideoValidator, (req, res)=>{
-        const {title, description, image} = req.body;
+    
+    .post(upload.single('image'), (req, res)=>{
+        const {title, description, channel, timestamp, views, likes, comments} = req.body;
+        const imageName = req.file.filename;
         const videos = getVideos();
         const newVideo = {
             id: uuidv4(),
             title,
             description,
-            image
+            image: `http://localhost:8080/images/${imageName}`,
+            channel, 
+            timestamp, 
+            views, 
+            likes,
+            comments
         }
 
         videos.push(newVideo);
